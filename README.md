@@ -1,6 +1,7 @@
 ## Snakemake pipeline for phasing rare variants with SHAPEIT5
 
-In brief, to phase rare WES variants (rule-3) we first need to phase array genotypes (rule-2), combined with common WES variants, and use those as scaffold for the rare ones. Apart from that, we can select a few trios to phase by Mendelian transmission (rule-4) and thus assess the statistical phasing (rule-5). Rule-4 is not necessary but good to have. Computationally, the tough ones are 2 and 3.
+In essence, the computational pipeline involves five key rules or steps. Initially, rule-1 generates two BCF files per chromosome needed as input to Shapeit5. Rule-2 ("phase common"; common refers to AF>0.001) requires the phasing of array genotypes combined with high-freq WES variants to serve as a scaffold for rare variants in rule-3. Additionally, the selection of trios facilitates phasing through Mendelian transmission in rule-4, which is needed for the assessment of statistical phasing in rule-5. While rules 4 & 5 are optional, they are advantageous to include. From a computational standpoint, steps 2 and 3 pose the most significant challenges in the process.
+
 #### Pipeline overview (rules)
 1. prepare BCF files (common & rare)
 2. phase common for the whole cohort (the scaffold)
@@ -16,10 +17,10 @@ In brief, to phase rare WES variants (rule-3) we first need to phase array genot
 * Data assumed at hand: BED for array; VCF for WES. Fix the corresponding paths in `Snakefile`.
 
 ### Important notes ####
-* Software dependencies: bcftools (+HTSlib), SHAPEIT5, snakemake (+Python).
-* The working directory should be the one from where the scripts will be executed. 
-* A few lists of sample IDs -- such as a map between array and WES indices, list of parents, etc -- are required in several parts of the pipeline. These can be generated once, e.g. with the `smk_00_prep_sample_lists.sh`, and are assumed to be in the sample_lists folder. But this file is GNH-specific, so please make any such lists appropriately. In fact, this step could be skipped completely!
-* Also, if no trios are sequenced, "phase_trios" and "assess_phasing" are not possible, thus the corresponding rules can be left out.
+* Software dependencies: bcftools (+HTSlib), PLINK v1.9, SHAPEIT5, Snakemake (+Python).
+* The working directory should be the one from where the scripts will be executed. Given the size of your sample data, it’s likely that the intermediate files will be substantially large. Therefore, it might be useful to change the temporary folder (./sandbox) to another with a larger disk space allocation.
+* A few lists of sample IDs -- such as a map between array and WES indices, list of parents, etc -- are required in several parts of the pipeline. These can be generated once, e.g. with the `smk_00_prep_sample_lists.sh`, and are assumed to be in the sample_lists folder. But this file is GNH-specific, so please create any such lists as needed. In fact, this step could be skipped completely!
+* Also, if no trios are sequenced, "phase_trios" and "assess_phasing" are not possible, thus the corresponding rules can be left out. In this case, 
 * Each script requires a few params, such as paths to genetic maps, or chunk lists. These are not pre-defined and need to be passed as arguments.
 * For trio phasing, as min-AC ~ 1/300, no rare variants exist, thus phasing is just one step. This is performed with `smk_02_phase_common.sh`, but with the appropriate input (a BCF for trios-only and the pedigree).
 * [TODO] The SER analysis is performed using the `switch` tool provided by SHAPEIT5 - this might need to change , as we can similarly work with `bcftools +trio-switch-rate ...`, which requires simpler input.

@@ -1,19 +1,22 @@
 #!/bin/bash
 #
-# prepare all the BCF files required for phasing - this is treaky as several files are needed
-# which should be included in ./sample_lists/
+# Here we prepare all BCF files required for phasing. To do so, we need to enable/set up enbcftools v1.16 and plink v1.9).
+# Several files are needed and some parts might be tricky, as different formats are needed (e.g., sample ID files differ between bcftools and plink). 
+# All files should be included in the ./sample_lists folder.
 # In brief, to merge WES and array variants we proceed as follows:
 # 1. extract "common" variants (AF>0.001)
-# 2. we filter-out anything tagged as "ExcessHet" (you might have to remove this filter)
-# 3. we filter-out indels longer than 25bp (if any; see discussion with high numbers of pLoF genotypes)
+# 2. filter-out anything tagged as "ExcessHet" (you might have to remove this filter)
+# 3. filter-out indels longer than 25bp (if any; see issues with high numbers of pLoF genotypes)
 # we save those to a VCF. Then we prepare array variants and make another VCF
 # For any overlapping variants, we chose those in the WES dataset. Then merge the two VCFs, and save as BCF.
 # To prepare the rare variants we follow a similar procedure but simpler.
 # Note that if no trios are available, `samples.$tag.100trios` should be an empty file to get things working.
-# Also, should exclude variants in LCRs, but that can be dealt with in the annotation.
+# Also, we should exclude variants in LCRs, but that can be dealt with in the annotation.
+#
+# Thanks to Andrea Eoli for pointing-out issues and improvements.
 
 ### resources ###
-module load common-apps/bcftools/1.16
+module load common-apps/bcftools/1.16 # could switch to a hard-link
 plink=/software/team281/bin/plink
 mem=16000
 threads=5
