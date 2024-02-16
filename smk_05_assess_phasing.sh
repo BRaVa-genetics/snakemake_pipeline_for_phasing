@@ -29,12 +29,10 @@ if [ $mode = "common" ]; then
 elif [ $mode = "rare" ]; then
     
     echo -e "\nWork for rare variants at $out_prefix"
-
-    # get list of the rare variants phased for each cohort
+    # get list of the rare variants phased for the trios cohort
     bcftools query -f '%CHROM:%POS:%REF:%ALT\t%POS\t%ID\t%AC\t%AN\n' $phased_true > $out_prefix.trios.chr$chr.snpinfo
-    bcftools query -f '%CHROM:%POS:%REF:%ALT\t%POS\t%ID\t%AC\t%AN\n' $phased_estd > $out_prefix.notrios.chr$chr.snpinfo
-
-    for PP in 0.50 0.80 0.90; do 
+    
+    for PP in 0.50 0.80 0.90 0.95; do 
         new_prefix="$out_prefix.assess_rare.pp$PP.chr$chr"
         $SHAPEIT_switch --validation $phased_true --estimation $phased_estd --min-pp $PP \
         --singleton --pedigree $pedigree \
@@ -47,6 +45,10 @@ elif [ $mode = "getpp" ]; then
 
     BCF=$3
     out_prefix=$4
+    
+    # get list of the rare variants phased for the notrios cohort
+    bcftools query -f '%CHROM:%POS:%REF:%ALT\t%POS\t%ID\t%AC\t%AN\n' $BCF > $out_prefix.notrios.chr$chr.snpinfo
+
     echo "Extracting PP summaries for $BCF (multiple tasks)"
 
     # MAF<0.001 + epsilon
