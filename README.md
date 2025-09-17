@@ -12,7 +12,7 @@ In essence, the computational pipeline involves five key rules or steps. Initial
 ### Required input ###
 * {TAG}.100trios.pedigree: a list of {child,father,mother} triplets for trio phasing. See [here](https://odelaneau.github.io/shapeit5/docs/documentation/phase_common/#usage2-phasing-related-samples).
 * Several lists of sample IDs, such as mapping between array and WES (optional).
-* [Genetic maps](https://github.com/odelaneau/shapeit5/tree/main/resources/maps/b38) and lists of [chunks](https://github.com/odelaneau/shapeit5/tree/main/resources/chunks/b38/4cM), per chromosome (see the corresponding scripts; what's out for build mismatches)
+* [Genetic maps](https://github.com/odelaneau/shapeit5/tree/main/resources/maps/b38) and lists of [chunks](https://github.com/odelaneau/shapeit5/tree/main/resources/chunks/b38/4cM), per chromosome (see the corresponding scripts; watch out for build mismatches)
 * A few parameters for Shapeit5 which are already set.
 * Data assumed at hand: BED for array; VCF for WES. Fix the corresponding paths in `Snakefile`.
 

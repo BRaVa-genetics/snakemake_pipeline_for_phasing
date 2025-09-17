@@ -2,21 +2,26 @@
 #
 # phase common variants using Shapeit5
 # minimal script to be used within the Snakemake pipeline
+# requires:
+# - chromosome number
+# - the preprocessed BCF to phase
+# - the genetic map
+# - output prefix (including path)
+# - optionally, a pedigree file for phasing trios
+# if pedigree is given, it will be used for phasing trios
+# otherwise, phasing is done without pedigree information
 #
 # GK - Jul 14th, 2023, 26/9/23
 
 chr=$1 # number of chrom to process
 to_phase=$2 # the *preprocessed* BCF to phase
-tag=$3 # a file identifier
-gmap=$4 # the genetic map
+# tag=$3 # a file identifier
+gmap=$3 # the genetic map
+out_prefix="$4.chr${chr}"
 pedigree=$5 # if given, the pedigree for phasing trios
-
-out_prefix="./phased_genotypes_common/$tag.phased.chr${chr}"
 phased="${out_prefix}.bcf"
 
-module load common-apps/bcftools/1.16
-# module load HGI/common/shapeit/contig
-SHAPEIT_phase_common='/software/team281/bin/shapeit5/phase_common_static'
+SHAPEIT_phase_common='/FIXTHIS/shapeit5_phase_common'
 threads=10
 
 ### hyper-parameters ###

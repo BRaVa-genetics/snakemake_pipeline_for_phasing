@@ -16,9 +16,9 @@
 # Thanks to Andrea Eoli for pointing-out issues and improvements.
 
 ### resources ###
-module load common-apps/bcftools/1.16 # could switch to a hard-link
-plink=/software/team281/bin/plink
-mem=16000
+# module load FIXTHIS/bcftools/1.16 # could switch to a hard-link
+# module load FIXTHIS/plink
+mem=8000
 threads=5
 
 ### input ###
@@ -34,7 +34,7 @@ samples_wes_array="$work_dir/sample_lists/samples.WES_in_GSA.fam"
 samples_final="$work_dir/sample_lists/samples.$tag.final" # EDIT THIS ACCORDINGLY
 # samples_final1="$work_dir/samples.$tag.final" # this file is WITHOUT underscores, might not exist at first
 # update_ids_wes="$work_dir/sample_lists/samples.update_ids_wes.txt" # not needed in general
-# update_ids_array="$work_dir/sample_lists/samples.update_ids_gsa.txt" # not needed in general
+update_ids_array="$work_dir/sample_lists/samples.update_ids_gsa.txt" # not needed in general
 echo "Samples w. both WES and array genotypes:" $(wc -l $samples_wes_array | awk '{print $1}')
 echo "Samples among trios to run SER analysis:" $(wc -l $samples_trios | awk '{print $1}')
 echo "Samples to keep for downstream analyses:" $(wc -l $samples_final | awk '{print $1}')
@@ -56,7 +56,9 @@ if [ ! -f $wes_new_prefix.vcf.gz ]; then
     echo -e "\nCalling BCFtools to prepare the WES input.\n"
     bcftools \
         view $input_wes -S $samples_final -Ou | bcftools \
-        filter --include 'MAF>0.001 & FILTER!="ExcessHet" & MAX(STRLEN(ALT))<25 & MAX(STRLEN(REF))<25' -Oz -o $wes_new_prefix.vcf.gz
+        +fill-tags -Ou -- -t MAF | bcftools \
+        filter --include 'MAF>0.001 & MAX(STRLEN(ALT))<25 & MAX(STRLEN(REF))<25' -Oz -o $wes_new_prefix.vcf.gz
+        # & FILTER!="ExcessHet"
     bcftools index $wes_new_prefix.vcf.gz
 else
     echo -e "\nWES input already exists - moving on.\n"
@@ -71,23 +73,26 @@ fi
 
 echo -e "\nCalling PLINK to prepare the GSA input."
 # subselect individuals, replace "22" with "chr22", and make the vcf in one go
-$plink --bfile $input_snp --chr $chr \
+plink --bfile $input_snp --chr $chr \
     --maf 0.001 \
     --keep $samples_wes_array \
+    --update-ids $update_ids_array \
     --real-ref-alleles \
     --recode vcf-fid bgz \
     --output-chr chr26 \
     --out $snp_new_prefix \
     --threads $threads --memory $mem
-    # --update-ids $update_ids_array \
+
 bcftools index $snp_new_prefix.vcf.gz
 
 ### C. Merge common WES with array ###
 
 # first, make a list of overlapping variants to exclude from GSA
 echo -e "\nExtracting overlapping variants between WES and array..."
-bcftools view -HG $wes_new_prefix.vcf.gz | awk '{ print $1":"$2}' > $wes_new_prefix.snpid
-bcftools view -HG $snp_new_prefix.vcf.gz | awk '{ print $1":"$2}' > $snp_new_prefix.snpid
+# bcftools view -HG $wes_new_prefix.vcf.gz | awk '{ print $1":"$2}' > $wes_new_prefix.snpid
+# bcftools view -HG $snp_new_prefix.vcf.gz | awk '{ print $1":"$2}' > $snp_new_prefix.snpid
+bcftools query -f '%CHROM:%POS:%REF:%ALT\n' $wes_new_prefix.vcf.gz > $wes_new_prefix.snpid
+bcftools query -f '%CHROM:%POS:%REF:%ALT\n' $snp_new_prefix.vcf.gz > $snp_new_prefix.snpid
 comm -23 <( sort $snp_new_prefix.snpid) <( sort $wes_new_prefix.snpid) > $snp_new_prefix.snpid_unique
 sed -i 's/:/\t/g' $snp_new_prefix.snpid_unique
 a=$(wc -l $snp_new_prefix.snpid | awk '{print $1}')
@@ -114,8 +119,11 @@ echo "Preparing a new BCF for rare variants..."
 SECONDS=0
 # here we have select rare variants and QC them, then select samples
 bcftools \
-    view -i 'MAF<0.001 & MAX(STRLEN(ALT))<25 & MAX(STRLEN(REF))<25 & FILTER!="ExcessHet"' -S $samples_final | bcftools \
+    view $input_wes -S $samples_final -Ou | bcftools \
+    +fill-tags -Ou -- -t MAF,AF,AC,AN | bcftools \
+    view -i 'MAF<=0.001 & MAX(STRLEN(ALT))<25 & MAX(STRLEN(REF))<25' | bcftools \
     annotate --set-id '%CHROM\:%POS\:%REF\:%ALT' -Ob -o $out_bcf_full_rare
+# & FILTER!="ExcessHet"
 bcftools index $out_bcf_full_rare
 echo "Done with preprocessing rare, duration: ${SECONDS}."
 

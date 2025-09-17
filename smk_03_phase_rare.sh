@@ -17,24 +17,25 @@ to_phase=$3 # the *preprocessed* BCF to phase
 tag=$4 # just an identifier
 gmap=$5 # the genetic map
 chunk_list=$6 # a file with a list of chunks
+work_dir=$7
 
 ### hyper-parameters ###
 threads=5
 # we need to both deal with "invalid CONTIG" issues and obtain PPs for singletons. this is enabled by 'shapeit/contig'
-module load HGI/common/shapeit/contig
-module load common-apps/bcftools/1.16 
+# module load FIXTHIS/bcftools/1.16
+phase_rare='/FIXTHIS/shapeit5_phase_rare'
+ligate='/FIXTHIS/shapeit5_ligate'
 
 ### Output prefices ###
-work_dir="."
-final_out="${work_dir}/phased_genotypes_rare/${tag}.phased_all.chr${chr}.bcf"
-out_prefix="${work_dir}/phased_genotypes_rare/chunks/${tag}.phased_all.chr${chr}"
+final_out="${work_dir}/phased_rare/${tag}.phased_all.chr${chr}.bcf"
+out_prefix="${work_dir}/phased_rare/chunks/${tag}.phased_all.chr${chr}"
 
 if [ ! -f ${to_phase}.csi ]; then
     echo "Generating the index for $to_phase..."
     bcftools index $to_phase
 fi
 
-mkdir -p ${work_dir}/phased_genotypes_rare/chunks/
+mkdir -p ${work_dir}/phased_rare/chunks/
 
 ## paramters for phasing with shapeit
 phased_set_error="0.0001" # this is not needed 
@@ -56,7 +57,7 @@ cat $chunk_list | while read LINE; do
     echo $phased_chunk >> $work_dir/sandbox/files.$chr
 
     if [ ! -f ${phased_chunk} ]; then
-        phase_rare \
+        $phase_rare \
             --input $to_phase \
             --input-region $IRG \
             --scaffold $phased_scaffold \
@@ -83,7 +84,7 @@ if [ -f ${phased_chunk} ]; then
     # we can either use bcftools concat-ligate (which has an issue), or ligate by SHAPEIT5
     # ls -1v $out_prefix.chunk*.bcf > $work_dir/sandbox/files.chr$chr
     # bcftools concat -n -Ob -o $final_out -f $work_dir/sandbox/files.chr$chr
-    ligate --input $work_dir/sandbox/files.$chr --output $final_out --thread 2
+    $ligate --input $work_dir/sandbox/files.$chr --output $final_out --thread 2
     bcftools index $final_out
     rm $work_dir/sandbox/files.$chr
 fi
