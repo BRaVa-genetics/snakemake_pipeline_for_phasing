@@ -1,0 +1,18 @@
+tag: "GNH_49k"
+
+jobname: "{rulename}.{jobid}"
+cluster: 
+  -cluster: "bsub -M {resources.mem_mb} -R 'rusage[mem={resources.mem_mb}]' -n {threads} -G team281 -q normal -o logs/{rulename}.%J.out -e logs/{rulename}.%J.err"
+default-resources:
+  - mem_mb=4000
+  - runtime=240
+  - threads=1
+use-conda: true
+conda-prefix: "snakemake-env"
+
+input_wes_prefix: "FIXTHIS/Genes_and_Health_2024_05_55k/release_2024-OCT-08/all_transcripts"
+input_bed_prefix: "FIXTHIS/genotyped_GSA-51k/GNH_GSA-51k_autosomes_AC1_REF_ALT/GNH_GSA-51k_autosomes_AC1-updated"
+genet_map_prefix: "FIXTHIS/analysis/phasing_51k/genetic_maps"
+chunk_list_prefix: "FIXTHIS/analysis/phasing_51k/chunks_b38_4cM/chunks_"
+work_dir: "FIXTHIS/analysis/phasing_51k"
+pedigree: "FIXTHIS/analysis/phasing_51k/sample_lists/GNH_49k.100trios.pedigree"
