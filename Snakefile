@@ -17,83 +17,92 @@ The pipeline consists of 4 small steps (small conceptually, might be tough compu
 
 Check the `README.md` for more details.
 
-# for LSF:
-`snakemake --cluster "bsub -M 16G -R 'select[mem>16G] rusage[mem=16G]' -n10 -G team281 -q normal -o run_all.stdout -e run_all.stderr" --jobs 22 --latency-wait 10 -T 2 run_all`
-
-GK - Sep 26th, 2023
+GK - Sep 26th, 2023, udpated Sept 2025
 """
 
 ## General input and parameters ##
-input_wes_prefix="/FIXTHIS/filtered_vcfs"
-input_bed_prefix="/FIXTHIS/GSA_QC/GNH_GSAv3EAMD_DupExcl_autosome_atcgSNP"
-genet_map_prefix="/FIXTHIS/genetic_maps"
-chunk_list_prefix="/FIXTHIS/chunks_b38_4cM/chunks_"
-
-WORK_DIR="/FIXTHIS/WORK_DIR"
-TAG="GNH_39k"
-PEDIGREE=WORK_DIR+"/GNH_39k.100trios.pedigree"
+TAG=config['tag']
+WORK_DIR=config["work_dir"]
+input_wes_prefix=config["input_wes_prefix"]
+input_bed_prefix=config["input_bed_prefix"]
+genet_map_prefix=config["genet_map_prefix"]
+chunk_list_prefix=config["chunk_list_prefix"]
+# PEDIGREE="{WORK_DIR}/sample_lists/{TAG}.100trios.pedigree"
 
 rule prepare_bcfs:
+    threads:5
     resources:
         mem_mb=16000,
-        threads=5
+    params:
+        workdir = config["work_dir"],
+        bed_prefix = config["input_bed_prefix"],
+        pedigree = config["pedigree"]
     input:
-        raw_wes = input_wes_prefix+"/chr{chrom}_hard_filters.vcf.gz",
+        raw_wes = input_wes_prefix+"/chr{chrom}_hard_filters.tidy.vep.vcf.gz",
     output:
         bcf_common = "{wd}/sandbox/{tag}.notrios.common_merged.chr{chrom}.bcf",
         bcf_rare   = "{wd}/sandbox/{tag}.notrios.rare_prepared.chr{chrom}.bcf"
     run:
-        shell("bash smk_01_prep_all_bcf.sh {wildcards.chrom} {TAG} {WORK_DIR} {input.raw_wes} "+input_bed_prefix)
+        shell("bash smk_01_prep_all_bcf.sh {wildcards.chrom} {wildcards.tag} {params.workdir} {input.raw_wes} {params.bed_prefix}")
 
 rule phase_common:
+    threads:10
     resources:
         mem_mb=16000,
-        threads=10
+    params:
+        out_pref = config["work_dir"] + "/phased_common/{tag}.notrios"
     input:
         input_bcf = rules.prepare_bcfs.output.bcf_common,
         genet_map = genet_map_prefix + "/chr{chrom}.b38.gmap.gz"
     output:
-        phased_bcf = "{wd}/phased_genotypes_common/{tag}.notrios.phased.chr{chrom}.bcf"
+        phased_bcf = "{wd}/phased_common/{tag}.notrios.chr{chrom}.bcf"
     shell:
         """
-        bash smk_02_phase_common.sh {wildcards.chrom} {input.input_bcf} {TAG}.notrios {input.genet_map}
+        bash smk_02_phase_common.sh {wildcards.chrom} {input.input_bcf} {input.genet_map} {params.out_pref}
         """
 
 rule phase_rare:
     resources:
-        mem_mb=16000,
-        threads=5
+        mem_mb=16000
     input:
         input_bcf = rules.prepare_bcfs.output.bcf_rare,
-        scaffold = rules.phase_common.output.phased_bcf,
+        scaffold = rules.phase_common.output.phased_bcf
+    params:
+        workdir = config["work_dir"],
         genet_map = genet_map_prefix + "/chr{chrom}.b38.gmap.gz",
-        chunk_list = chunk_list_prefix + "chr{chrom}.txt"
+        chunk_list = chunk_list_prefix + "chr{chrom}.txt",
+        tag = config["tag"] + ".notrios"
     output:
-        phased_bcf = "{wd}/phased_genotypes_rare/{tag}.notrios.phased_all.chr{chrom}.bcf"
+        phased_bcf = "{wd}/phased_rare/{tag}.notrios.phased_all.chr{chrom}.bcf"
     shell:
         """
-        bash smk_03_phase_rare.sh {wildcards.chrom} {input.scaffold} {input.input_bcf} {TAG}.notrios {input.genet_map} {input.chunk_list}
+        bash smk_03_phase_rare.sh {wildcards.chrom} {input.scaffold} {input.input_bcf} {params.tag} {params.genet_map} {params.chunk_list} {params.workdir}
         """
 
 rule phase_trios:
     resources:
-        mem_mb=16000,
-        threads=10
+        mem_mb=16000
+    threads:5
+    params:
+        workdir = config["work_dir"],
+        bed_prefix = config["input_bed_prefix"],
+        outpref = config["work_dir"] + "/phased_common/{tag}.trios",
+        pedigree = config["pedigree"]
     input:
-        raw_wes = input_wes_prefix + "/chr{chrom}_hard_filters.vcf.gz",
+        raw_wes = input_wes_prefix + "/chr{chrom}_hard_filters.tidy.vep.vcf.gz",
         genet_map = genet_map_prefix + "/chr{chrom}.b38.gmap.gz"
     output:
         trios_prep = "{wd}/sandbox/{tag}.trios.prepared.chr{chrom}.bcf",
-        phased_bcf = "{wd}/phased_genotypes_common/{tag}.trios.phased.chr{chrom}.bcf"
+        trios_csi  = "{wd}/sandbox/{tag}.trios.prepared.chr{chrom}.bcf.csi",
+        phased_bcf = "{wd}/phased_common/{tag}.trios.chr{chrom}.bcf",
+        phased_csi = "{wd}/phased_common/{tag}.trios.chr{chrom}.bcf.csi"
     shell:
         """
-        bash smk_04_phase_trios.sh {wildcards.chrom} {TAG} {WORK_DIR} {input.raw_wes} {input_bed_prefix}
-        bash smk_02_phase_common.sh {wildcards.chrom} {output.trios_prep} {TAG}.trios {input.genet_map} {PEDIGREE}
+        bash smk_04_phase_trios.sh {wildcards.chrom} {wildcards.tag} {params.workdir} {input.raw_wes} {params.bed_prefix}
+        bash smk_02_phase_common.sh {wildcards.chrom} {output.trios_prep} {input.genet_map} {params.outpref} {params.pedigree}
         """
 
 rule assess_phasing:
-    resources:
-        threads=5
     input:
         phased_common= rules.phase_common.output.phased_bcf,
         phased_rare  = rules.phase_rare.output.phased_bcf,
@@ -103,12 +112,11 @@ rule assess_phasing:
         ser_rare = "{wd}/phasing_assessment/{tag}.assess_rare.pp0.50.chr{chrom}.variant.switch.txt.gz"
     run:
         prefix = WORK_DIR + "/phasing_assessment/" + TAG
-        shell("bash smk_05_assess_phasing.sh common {wildcards.chrom} {input.phased_trios} {input.phased_common} {PEDIGREE} {prefix}")
-        shell("bash smk_05_assess_phasing.sh rare {wildcards.chrom} {input.phased_trios} {input.phased_rare} {PEDIGREE} {prefix}")
+        pedigree = config["pedigree"]
+        shell("bash smk_05_assess_phasing.sh common {wildcards.chrom} {input.phased_trios} {input.phased_common} {pedigree} {prefix}")
+        shell("bash smk_05_assess_phasing.sh rare {wildcards.chrom} {input.phased_trios} {input.phased_rare} {pedigree} {prefix}")
 
 rule get_pp_distribution:
-    resources:
-        threads=4
     input:
         phased_rare  = rules.phase_rare.output.phased_bcf
     output:
@@ -121,8 +129,8 @@ rule get_pp_distribution:
 
 rule run_all:
     input:
-        expand(WORK_DIR+"/phased_genotypes_common/{tag}.trios.phased.chr{chrom}.bcf", chrom=range(1,23), tag={TAG}),
-        expand(WORK_DIR+"/phased_genotypes_rare/{tag}.notrios.phased_all.chr{chrom}.bcf", chrom=range(1,23), tag={TAG}),   
+        expand(WORK_DIR+"/phased_common/{tag}.trios.chr{chrom}.bcf", chrom=range(1,23), tag={TAG}),
+        expand(WORK_DIR+"/phased_rare/{tag}.notrios.phased_all.chr{chrom}.bcf", chrom=range(1,23), tag={TAG}),   
         expand(WORK_DIR+"/phasing_assessment/{tag}.assess_rare.pp0.50.chr{chrom}.variant.switch.txt.gz", chrom=range(1,23), wd={WORK_DIR}, tag={TAG}),
         # expand(WORK_DIR+"/phasing_assessment/{tag}.assess_common.chr{chrom}.variant.switch.txt.gz", chrom=range(21,22), tag={TAG}),
-        expand(WORK_DIR+"/phasing_assessment/{tag}.pp.chr{chrom}.maf00015.pp0.90.gz", chrom=range(1,23), tag={TAG}),
+        # expand(WORK_DIR+"/phasing_assessment/{tag}.pp.chr{chrom}.maf00015.pp0.90.gz", chrom=range(1,23), tag={TAG}),
