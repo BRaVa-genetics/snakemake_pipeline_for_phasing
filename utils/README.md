@@ -48,6 +48,6 @@ This phenomenemon is also observed in the 100kGP, where Shi et al (2024) followe
 |  | EUR | SAS |
 |--:|:-----:|:-----:|
 Total | 8978 | 4837 |
-Matched homozygotes| 7839 | 4185 |
+Matched homozygotes| 8915 | 4822 |
 Potentially wrong| 0 + 63 | 2 + 13 |
 Upper bound for FP | 0.8% | 0.4% |
