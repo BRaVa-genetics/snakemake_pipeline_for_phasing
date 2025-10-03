@@ -15,17 +15,19 @@ else
 fi
 
 wd_pref="/PATH/TO/WD"
-to_check=$wd_pref/gt_to_assess.$C.txt
+to_check=$wd_pref/tmp/gt_to_assess.$C.txt
+output="$wd_pref/assess_homz.report.$C.txt"
 
 # INPUT
 rawVCF="PATH/TO/QC_BUT_UNPHASED/chr${C}_hard_filters.tidy.vep.vcf.gz"
 outVCF="PATH/TO/PHASED/GNH_49k.notrios.phased_all.chr$C.bcf"
 genotypes="PATH/TO/OUTPUT_FROM_call_chets/chr$C.pLOF.txt.gz"
 
+mkdir -p $wd_pref/tmp/
 # prepare a list of (sample, variant) to assess
 # note: in case of "double" homozygotes, we only work with the first variant
 zcat $genotypes | grep hom | grep -v '_' | awk '{split($NF, a, "|"); print $1, a[1]}' > $to_check
-python3 $wd_pref/debug_homozygotes.py -i $rawVCF -o $outVCF --focals $to_check --hom alt
+python3 $wd_pref/debug_homozygotes.py -i $rawVCF -o $outVCF --focals $to_check --hom alt > $output
 
 # rm tmp.gt.chr$C
 

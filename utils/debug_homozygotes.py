@@ -3,8 +3,23 @@ import sys, argparse
 import pysam
 
 def parse_varid(v):
-    chrom, pos = v.split(":")[:2]
-    return chrom, int(pos)
+    # in case of many variants, work with the first
+    snp0 = v.split(";")[0]
+    # chrom, pos = v.split("|")[:2]
+    chrom, pos, ref, alt = snp0.split(":")
+    return chrom, int(pos), ref, alt
+
+# When fetching variants, also filter by allele
+def fetch_variant(vcf, chrom, pos, ref=None, alt=None):
+    for rec in vcf.fetch(chrom, pos-1, pos):
+        if rec.pos != pos:
+            continue
+        if ref and alt:
+            if rec.ref == ref and alt in rec.alts:
+                return rec
+        else:
+            return rec
+    return None
 
 def fetch_rec(vcf, chrom, pos):
     for rec in vcf.fetch(chrom, pos-1, pos):
@@ -66,7 +81,8 @@ def main():
 
     total_checked = 0
     correct = 0
-    flagged = 0
+    flagged_fp = 0
+    flagged_fn = 0
     num_other = 0
 
     # Precompute sample lists
@@ -74,9 +90,12 @@ def main():
     out_samples = set(list(out_vcf.header.samples))
 
     for kind, sample, varid in focals:
-        chrom, pos = parse_varid(varid)
-        rec_in  = fetch_rec(in_vcf,  chrom, pos)
-        rec_out = fetch_rec(out_vcf, chrom, pos)
+        # chrom, pos = parse_varid(varid)
+        # rec_in  = fetch_rec(in_vcf,  chrom, pos)
+        # rec_out = fetch_rec(out_vcf, chrom, pos)
+        chrom, pos, ref, alt = parse_varid(varid)
+        rec_in  = fetch_variant(in_vcf,  chrom, pos, ref, alt)
+        rec_out = fetch_variant(out_vcf, chrom, pos, ref, alt)
 
         if rec_out is None:
             # Nothing to check if variant absent in output
@@ -98,17 +117,21 @@ def main():
             gt_in  = get_gt(rec_in,  s) if s in in_samples else None
             gt_out = get_gt(rec_out, s)
 
-            if is_missing(gt_in) and is_homozygote(gt_out, mode=args.hom):
-                flagged += 1
-                print(f"{s}\t{varid}\tIN=NA\tOUT={gt_out}")
+            if is_missing(gt_in) and is_homozygote(gt_out, mode='alt'):
+                flagged_fp += 1
+                print(f"FP? {s}\t{varid}\tIN=NA\tOUT={gt_out}")
+            elif is_missing(gt_in) and is_homozygote(gt_out, mode='ref'):
+                flagged_fn += 1
+                print(f"FN? {s}\t{varid}\tIN=NA\tOUT={gt_out}")
             elif is_homozygote(gt_out, mode=args.hom) and is_homozygote(gt_in, mode=args.hom):
                 correct += 1
             else:
                 print(f"{s}\t{varid}\tIN=NA\tOUT={gt_out}")
                 num_other += 1
 
-    print(f"# Checked: {total_checked}\n# Flagged (IN missing & OUT homozygote [{args.hom}]): {flagged}")
-    print(f"# Correct (IN & OUT homozygote [{args.hom}]): {correct}")
+    print(f"# Checked: {total_checked}\n# Correct (IN & OUT homozygote [{args.hom}]): {correct}")
+    print(f"# Flagged (IN missing & OUT homozygote:ALT [{args.hom}]): {flagged_fp}")
+    print(f"# Flagged (IN missing & OUT homozygote:REF [{args.hom}]): {flagged_fn}")
     print(f"# Other : {num_other}")
 
 
