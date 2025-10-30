@@ -9,6 +9,9 @@ In essence, the computational pipeline involves five key rules or steps. Initial
 4. prepare and phase trios (just common variants; phase using the script for step-2)
 5. assess phasing and get files with the PP distribution (needed for plotting).
 
+> [!WARNING] 
+> The array genotypes need to be aligned to a reference genome (allele swapping). This step is NOT included in this pipeline but can be performed upstream of step-1, e.g. by following what's described in https://www.strand.org.uk/ or in one of [SHAPEIT5 tutorials](https://odelaneau.github.io/shapeit5/docs/tutorials/ukb_snp_array/#swap-alleles).
+
 ### Required input ###
 * {TAG}.100trios.pedigree: a list of {child,father,mother} triplets for trio phasing. See [here](https://odelaneau.github.io/shapeit5/docs/documentation/phase_common/#usage2-phasing-related-samples).
 * Several lists of sample IDs, such as mapping between array and WES (optional).
